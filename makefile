@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS= -g -O0 -std=c99 -Wall -Werror -Wpedantic
-LDFLAGS= -lm -lportaudio
+LDFLAGS= -lm -lportaudio -lSDL2
 PROJECT_NAME=audio_visualizer
 
 build:
