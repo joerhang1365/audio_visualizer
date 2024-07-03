@@ -11,16 +11,21 @@ typedef float          f32;
 
 #define SAMPLE_RATE 44100
 #define FRAMES_PER_BUFFER 512
-#define CHANNEL_COUNT 2
 
+#define CHANNEL_COUNT 2
 #define TERMINAL_DISPLAY_SIZE 100
 #define SCREEN_WIDTH 720
 #define SCREEN_HEIGHT 720
-#define SCREEN_WIDTH_2 SCREEN_WIDTH / 2
-#define SCREEN_WIDTH_4 SCREEN_WIDTH / 4
-#define SCREEN_HEIGHT_2 SCREEN_HEIGHT / 2
-#define SCREEN_HEIGHT_4 SCREEN_HEIGHT / 4
-#define SCREEN_HEIGHT_8 SCREEN_HEIGHT / 8
+#define DISPLAY_HEIGHT 128
+#define DISPLAY_HEIGHT_2 DISPLAY_HEIGHT / 2
+#define DISPLAY_HEIGHT_4 DISPLAY_HEIGHT / 4
+#define DISPLAY_HEIGHT_8 DISPLAY_HEIGHT / 8
+#define DISPLAY_WIDTH 128
+#define DISPLAY_WIDTH_2 DISPLAY_WIDTH / 2
+#define DISPLAY_WIDTH_4 DISPLAY_WIDTH / 4
+#define BLOCK_HEIGHT SCREEN_HEIGHT / DISPLAY_HEIGHT
+#define BLOCK_WIDTH SCREEN_WIDTH / DISPLAY_WIDTH
+
 #define BACKGROUND 0x000F
 #define WHITE 0xFFFF
 #define RED 0xF00F
@@ -54,25 +59,11 @@ static inline f32 absolute_value(const f32 a)
   return a > 0 ? a : -a;
 }
 
-static inline void screen_clear(u16 *pixels, const u32 size)
+static inline void screen_clear(const u32 size)
 {
   for (u32 i = 0; i < size; i++)
   {
     pixels[i] = 0;
-  }
-}
-
-static inline void screen_shift_right(u16 *pixels, const u32 width, const u32 height)
-{
-  for (i32 i = 0; i < height; i++)
-  {
-    for (i32 j = 0; j < width; j++)
-    {
-      if (j == 0) continue;
-
-      pixels[i * width + j - 1] = pixels[i * width + j];
-    }
-    pixels[i * width] = BACKGROUND;
   }
 }
 
@@ -105,44 +96,77 @@ static void terminal_render(const f32 volume_left, const f32 volume_right)
   fflush(stdout); 
 }
 
+static void rect(const i32 x, const i32 y, const u16 color)
+{
+  for (i32 i = 0; i < BLOCK_HEIGHT; i++)
+  {
+    for (i32 j = 0; j < BLOCK_WIDTH; j++)
+    {
+      pixels[(i + y) * SCREEN_WIDTH + j + x] = color;
+    }
+  }
+}
+
+static void shift_rect(const i32 x, const i32 y)
+{
+  for (i32 i = 0; i < BLOCK_HEIGHT; i++)
+  {
+    for (i32 j = 0; j < BLOCK_WIDTH; j++)
+    {
+      pixels[(i + y) * SCREEN_WIDTH + j + x - BLOCK_WIDTH] = 
+        pixels[(i + y) * SCREEN_WIDTH + j + x];
+    }
+  }
+}
+
+
+static void shift_right()
+{
+  for (i32 i = 0; i < DISPLAY_HEIGHT; i++)
+  {
+    for (i32 j = 0; j < DISPLAY_WIDTH; j++)
+    {
+      if (j == 0) continue;
+
+      shift_rect(j * BLOCK_WIDTH, i * BLOCK_HEIGHT);
+    }
+  }
+}
+
 static void video_render(const f32 volume_left, const f32 volume_right)
 {
   /* background */
-  screen_shift_right(pixels, SCREEN_WIDTH, SCREEN_HEIGHT);
+  //screen_clear(pixels, SCREEN_WIDTH * SCREEN_HEIGHT);
+  shift_right();
+  const i32 x = (DISPLAY_WIDTH_2 + DISPLAY_WIDTH_4) * BLOCK_WIDTH;
 
-  for (i32 i = 0; i < SCREEN_HEIGHT_2; i++)
+  for (i32 i = 0; i < DISPLAY_HEIGHT_2; i++)
   {
-    // adjusting this changes the sensitivity of the input
-    f32 bar_proportion = i / (f32)SCREEN_HEIGHT * 2;
+    f32 bar_proportion = i / (f32)DISPLAY_HEIGHT_2;
 
     if (bar_proportion <= volume_left)
     {
-      u32 index = (SCREEN_WIDTH * SCREEN_HEIGHT_2 + SCREEN_WIDTH_4) - 
-        (i * SCREEN_WIDTH + SCREEN_WIDTH_2);
+      const i32 y = DISPLAY_HEIGHT_2 * BLOCK_HEIGHT - i * BLOCK_HEIGHT;
+      u16 color = BACKGROUND;
 
-      u16 color = 0x000F;
-
-      if (i < SCREEN_HEIGHT_4) color = GREEN;
-      else if (i < SCREEN_HEIGHT_4 + SCREEN_HEIGHT_8) color = YELLOW;
+      if (i < DISPLAY_HEIGHT_4) color = GREEN;
+      else if (i < DISPLAY_HEIGHT_4 + DISPLAY_HEIGHT_8) color = YELLOW;
       else color = RED;
 
-      pixels[index] = color;
+      rect(x, y, color);
     }
     if (bar_proportion <= volume_right)
     {
-      u32 index = (SCREEN_WIDTH * SCREEN_HEIGHT_2 + SCREEN_WIDTH_4) + 
-        (i * SCREEN_WIDTH + SCREEN_WIDTH_2);
+      const i32 y = DISPLAY_HEIGHT_2 * BLOCK_HEIGHT + i * BLOCK_HEIGHT;
+      u16 color = BACKGROUND;
 
-      u16 color = 0x000F;
-
-      if (i < SCREEN_HEIGHT_4) color = GREEN;
-      else if (i < SCREEN_HEIGHT_4 + SCREEN_HEIGHT_8) color = YELLOW;
+      if (i < DISPLAY_HEIGHT_4) color = GREEN;
+      else if (i < DISPLAY_HEIGHT_4 + DISPLAY_HEIGHT_8) color = YELLOW;
       else color = RED;
 
-      pixels[index] = color;
+      rect(x, y, color);
     }
   }
-
   /* copy pixels to texture to renderer */
   const u32 pitch = 2;
   SDL_UpdateTexture(texture, NULL, pixels, SCREEN_WIDTH * pitch);
