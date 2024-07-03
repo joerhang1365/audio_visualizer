@@ -16,15 +16,17 @@ typedef float          f32;
 #define TERMINAL_DISPLAY_SIZE 100
 #define SCREEN_WIDTH 720
 #define SCREEN_HEIGHT 720
-#define DISPLAY_HEIGHT 128
+#define DISPLAY_HEIGHT 72
 #define DISPLAY_HEIGHT_2 DISPLAY_HEIGHT / 2
 #define DISPLAY_HEIGHT_4 DISPLAY_HEIGHT / 4
 #define DISPLAY_HEIGHT_8 DISPLAY_HEIGHT / 8
-#define DISPLAY_WIDTH 128
+#define DISPLAY_WIDTH 72
 #define DISPLAY_WIDTH_2 DISPLAY_WIDTH / 2
-#define DISPLAY_WIDTH_4 DISPLAY_WIDTH / 4
+#define DISPLAY_WIDTH_4 DISPLAY_WIDTH
 #define BLOCK_HEIGHT SCREEN_HEIGHT / DISPLAY_HEIGHT
 #define BLOCK_WIDTH SCREEN_WIDTH / DISPLAY_WIDTH
+
+#define LINE_WIDTH 2
 
 #define BACKGROUND 0x000F
 #define WHITE 0xFFFF
@@ -167,6 +169,29 @@ static void video_render(const f32 volume_left, const f32 volume_right)
       rect(x, y, color);
     }
   }
+
+  // horizontal lines
+  for (i32 i = 0; i < SCREEN_HEIGHT; i++)
+  {
+    for (i32 j = 0; j < SCREEN_WIDTH; j++)
+    {
+      pixels[i * SCREEN_WIDTH + j] = BACKGROUND;
+    }
+
+    if (i % LINE_WIDTH == 0) i += BLOCK_HEIGHT - LINE_WIDTH;
+  }
+
+  // vertical lines
+  for (i32 j = 0; j < SCREEN_WIDTH; j++)
+  {
+    for (i32 i = 0; i < SCREEN_HEIGHT; i++)
+    {
+      pixels[i * SCREEN_WIDTH + j] = BACKGROUND;
+    }
+
+    if (j % LINE_WIDTH == 0) j += BLOCK_WIDTH - LINE_WIDTH;
+  }
+
   /* copy pixels to texture to renderer */
   const u32 pitch = 2;
   SDL_UpdateTexture(texture, NULL, pixels, SCREEN_WIDTH * pitch);
